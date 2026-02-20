@@ -1,0 +1,231 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Ты — специализированный ассистент для формирования запросов к News API. Твоя задача — анализировать текстовый запрос пользователя и преобразовывать его в структурированные параметры для API.\n\n**Исходный запрос пользователя:**\n\"{{ $json.message.text }}\"\n\n**Инструкции по извлечению параметров:**\n\n1. **Параметр `q` (самый важный):**\n   - Извлеки ключевые слова и фразы из запроса.\n   - Если пользователь указывает точную фразу (в кавычках или явно говорит \"точная фраза\"), сохрани ее в кавычках.\n   - Для обязательных слов используй префикс `+`.\n   - Для исключаемых слов используй префикс `-`.\n   - Поддержи конструкции `AND`, `OR`, `NOT` с скобками при необходимости.\n   - Преобразуй запрос на естественном языке в эффективную поисковую строку.\n   - **Примеры преобразований:**\nЕсли q = bitcoin, то:\n     https://newsapi.org/v2/everything?q=bitcoin&apiKey=959e6b2d0298411aa6674d0ffc4c7f69\n\n!ВЕРНИ ТОЛЬКО URL БЕЗ '\\n' в начале, ЗАМЕНИВ 'q=bitcoin' на 'q=выделенное_ключевое_слово'.\n\nЕсли невозможно выделить ключевое слово, начни свой ответ так: \"К сожалению, не смог выделиьт ключевых слов\"... и дальше, если возможно, логичный ответ на запрос. Но не игнорируй вопрос пользователя, если он вне твоей комппетенции по новостям, дай ответ и поддержи разговор.",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1824,
+        1040
+      ],
+      "id": "970f1ffd-b20c-438f-a42c-77ccb3ef09c2",
+      "name": "AI Agent",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "e97329d7-bc7b-4a3e-9c71-61ddc9b94030",
+              "leftValue": "={{ $json.output }}",
+              "rightValue": "https://newsapi.org/",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {
+          "ignoreCase": true
+        }
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2208,
+        1040
+      ],
+      "id": "47aa1581-36c4-40e6-b6ca-3a05c744da64",
+      "name": "If2"
+    },
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        1552,
+        1040
+      ],
+      "id": "75d4abf9-8a0c-4b1e-bf7a-449a07953d84",
+      "name": "Входящее сообщение",
+      "webhookId": "f767bc42-990a-472f-9d20-9583071ccf20",
+      "credentials": {
+        "telegramApi": {
+          "id": "rUyEPbk3pI9vHFYx",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Входящее сообщение').item.json.message.chat.id }}",
+        "text": "=📰 По вашему запросу \"{{ $('Входящее сообщение').item.json.message.text }}\" найдено новостей: {{ $json.articles.length }}\n{{ $json.articles.slice(0, 5).map((article, index) => `\n${index+1}. *${article.title}*\n${article.description || 'Нет описания'}\n[Читать статью](${article.url})\n`).join('\\n') }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2768,
+        896
+      ],
+      "id": "aa50d4b8-34a0-430e-9866-28b0643a643e",
+      "name": "Ответ, если найдены статьи",
+      "webhookId": "9af7aeae-3aad-47e8-82ae-b928f77f48ef",
+      "credentials": {
+        "telegramApi": {
+          "id": "rUyEPbk3pI9vHFYx",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Входящее сообщение').item.json.message.chat.id }}",
+        "text": "=📰 По вашему запросу \"{{ $('Входящее сообщение').item.json.message.text }}\" не найдено новостей :(\n\nОтвет ИИ-помощника:\n{{ $('AI Agent').item.json.output }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2480,
+        1168
+      ],
+      "id": "ee3901f4-d22d-4957-a3ab-095df1262a35",
+      "name": "Ответ если НЕ найдены статьи",
+      "webhookId": "9af7aeae-3aad-47e8-82ae-b928f77f48ef",
+      "credentials": {
+        "telegramApi": {
+          "id": "rUyEPbk3pI9vHFYx",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "tngtech/deepseek-r1t2-chimera:free",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        1824,
+        1232
+      ],
+      "id": "886ff24d-ab92-4f43-a8be-a412f85e81c6",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "pwZ0uNDHR8vGjmgW",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{$json.output.replace(/\\n/g, '').replace( ' ', '+')}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2480,
+        960
+      ],
+      "id": "4e71ceb9-9c87-482c-9d71-953958cf790c",
+      "name": "HTTP Request"
+    }
+  ],
+  "connections": {
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "If2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If2": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Ответ если НЕ найдены статьи",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Входящее сообщение": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ответ, если найдены статьи": {
+      "main": [
+        []
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Ответ, если найдены статьи",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateId": "2462",
+    "templateCredsSetupCompleted": true,
+    "instanceId": "320e5cf979c67391008524d84b222fab78e5d31110a160f38300dc3a782b7ff7"
+  }
+}
